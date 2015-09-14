@@ -1,0 +1,4 @@
+cron:
+- description: pull data
+  url: /pull_data
+  schedule: every 5 minutes

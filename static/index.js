@@ -25,7 +25,10 @@ document.addEventListener("DOMContentLoaded", function() {
 			var textRightOfCount = left < 0.5;
 			var classes = 'pin ' + (textRightOfCount ? 'textRightOfCount' : 'textLeftOfCount');
 			var div = d3.select(document.createElement('div')).attr({'class': classes}).node();
-			var text = d3.select(document.createElement('h1')).text(title).node();
+			
+			var displayTitle = {Andrews: 'Aco'}[title];
+			if (!displayTitle) displayTitle = title;
+			var text = d3.select(document.createElement('h1')).text(displayTitle).node();
 			
 			if (!textRightOfCount) div.appendChild(text);
 			
@@ -53,12 +56,12 @@ document.addEventListener("DOMContentLoaded", function() {
 				return timeOfDay(a.timestamp) - timeOfDay(b.timestamp);
 			})
 			
-			var graphWidth = 700, graphHeight = 100;
+			var graphWidth = 700, graphHeight = 200, lineHeight = 100;
 			
 			var xScale = d3.scale.linear().domain([0, secondsInDay]).range([0, graphWidth]);
-			var yScale = d3.scale.linear().domain([0, d3.max(measurements.map(function(m) {return m.count}))]).range([0, graphHeight]);
+			var yScale = d3.scale.linear().domain([0, d3.max(measurements.map(function(m) {return m.count}))]).range([0, lineHeight]);
 						
-			var svg = node.selectAll('svg').data([1]).enter().append('svg');
+			var svg = node.selectAll('svg').data([1]).enter().append('svg').attr('class', 'graph');
 			svg.attr('viewBox', '0 0 ' + graphWidth + ' ' + graphHeight).attr('preserveAspectRatio', 'none');
 			
 			var line = d3.svg.area()
@@ -69,9 +72,7 @@ document.addEventListener("DOMContentLoaded", function() {
 				}).y0(function(m) {
 					return graphHeight - 1;
 				}).interpolate('basis');
-			
-			var path = svg.selectAll('path').data([measurements]).enter().append('path').attr("d", line);
-			
+						
 			var pinLeft = (timeOfDay(mostRecentMeasurement.timestamp) / secondsInDay);
 			
 			// create gradient:
@@ -97,20 +98,40 @@ document.addEventListener("DOMContentLoaded", function() {
 			    .attr("stop-opacity", 1);
 			gradient.append("svg:stop")
 			    .attr("offset", (pinLeft) * 100 + '%')
-			    .attr("stop-color", "#036564")
-			    .attr("stop-opacity", 0.3);
-					path.attr('fill', 'url(#gradient)');
+			    .attr("stop-color", "#63bfbc")
+			    .attr("stop-opacity", 1);
 			
-			var path = svg.selectAll('path').data([measurements]).enter().append('path').attr("d", line);
+			var mask = svg.selectAll('defs')
+					.append('clipPath')
+					.attr('id', 'clip')
+					.append('rect')
+					.attr({x: 0, y: 0, width: pinLeft * graphWidth, height: graphHeight});
+			
+			var path = svg.selectAll('path').data([measurements, measurements]).enter()
+					.append('path')
+					.attr("d", line)
+					.each(function(d, i) {
+						if (i == 0) {
+							this.setAttribute('fill', '#63bfbc');
+							this.setAttribute('opacity', 0.3);
+						} else if (i == 1) {
+							this.setAttribute("clip-path", "url(#clip)");
+							this.setAttribute('fill', 'url(#gradient)');
+						}
+					});
 			
 			node.selectAll('.pin-container').remove();
 			node.node().appendChild(createPin(pinLeft, mostRecentMeasurement.count, eateryNames[eatery]));
+			svg.selectAll('line').data([1]).enter().append('line')
+				.attr({stroke: '#E8DDCB', x1: pinLeft * graphWidth, x2: pinLeft * graphWidth, y1: 0, y2: '100%'});
 			
 			if (drawGlobalLine) {
-				var line = document.createElement('div');
-				line.className = 'global-line';
-				line.style.left = pinLeft * 100 + '%';
-				document.body.appendChild(line);
+				var lineSvg = d3.select('body').selectAll('svg.line').data([1]).enter().append('svg')
+				.attr('class', 'line')
+				.attr('viewBox', '0 0 ' + graphWidth + ' ' + graphHeight)
+				.attr('preserveAspectRatio', 'none')
+				.selectAll('line').data([1]).enter()
+					.append('line').attr({x1: pinLeft * graphWidth, x2: pinLeft * graphWidth, y0: 0, y1: '100%'});
 			}
 		}
 		
